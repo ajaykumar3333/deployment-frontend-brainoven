@@ -117,11 +117,145 @@ export default function AdminDashboard(){
 
   return (
     <>
-      <div className="card" style={{display:"flex", justifyContent:"space-between", alignItems:"center"}}>
+      {/* --------- Mobile / Visual Enhancements (no JS changes) --------- */}
+      <style>{`
+        :root{
+          --card-bg: #ffffff;
+          --muted: #6c757d;
+          --accent: #212529;
+          --soft: #f6f7f8;
+        }
+
+        /* Card look */
+        .card {
+          background: var(--card-bg);
+          border-radius: 12px;
+          padding: 18px;
+          margin-bottom: 18px;
+          box-shadow: 0 6px 18px rgba(20,20,30,0.04);
+        }
+
+        /* Header card layout */
+        .card.header {
+          display:flex;
+          justify-content:space-between;
+          align-items:center;
+          gap:12px;
+        }
+
+        .card.header h2 { margin:0; font-size:1.1rem }
+        .header-controls { display:flex; gap:8px; align-items:center; }
+
+        /* Buttons */
+        .btn {
+          background: var(--accent);
+          color: #fff;
+          border: none;
+          padding: 8px 12px;
+          border-radius: 8px;
+          cursor:pointer;
+          font-weight:600;
+        }
+        .btn.ghost {
+          background: transparent;
+          color: var(--accent);
+          border: 1px solid #e6e7ea;
+          font-weight:600;
+        }
+        .btn.small { padding:6px 10px; font-size:0.95rem }
+
+        /* Form rows */
+        .form-row {
+          display:flex;
+          gap:10px;
+          margin-bottom:10px;
+          align-items:center;
+          flex-wrap:wrap;
+        }
+        .form-row input, .form-row textarea {
+          flex:1 1 220px;
+          padding:10px 12px;
+          border-radius:8px;
+          border:1px solid #e7e8eb;
+          font-size:0.95rem;
+          background: #fbfcfd;
+        }
+        .form-row textarea { min-height:72px; }
+
+        /* Make action controls more accessible on mobile */
+        .action-bar { display:flex; gap:8px; margin-top:6px; }
+        .action-bar .btn { flex:0 0 auto; }
+
+        /* Tables - responsive */
+        .table-responsive { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+        table.table { width:100%; border-collapse:collapse; min-width:600px; }
+        table.table thead th {
+          text-align:left;
+          padding:10px 12px;
+          color:var(--muted);
+          font-size:0.9rem;
+          border-bottom:1px solid #f1f3f5;
+        }
+        table.table tbody td {
+          padding:10px 12px;
+          border-bottom:1px solid #f6f7f8;
+        }
+        table.table tbody tr:nth-child(odd) { background: #ffffff; }
+        table.table tbody tr:nth-child(even) { background: #fbfcfd; }
+
+        /* Actions column - stack on mobile */
+        .actions { display:flex; gap:8px; flex-wrap:wrap; }
+        .actions .btn { padding:6px 10px; font-size:0.9rem }
+
+        /* Small text */
+        .small { color:var(--muted); font-size:0.9rem; }
+
+        /* Sub-head spacing */
+        h3, h4 { margin:8px 0 12px 0; }
+
+        /* Divider helper */
+        .divider { height:1px; background:#f1f3f5; margin:12px 0; border-radius:2px; }
+
+        /* ---------- MOBILE-SPECIFIC ---------- */
+        @media (max-width: 768px) {
+
+          /* Header card stacks */
+          .card.header { flex-direction:column; align-items:flex-start; }
+
+          .header-controls { width:100%; display:flex; gap:8px; }
+
+          /* Form rows become vertical stacks */
+          .form-row { flex-direction:column; }
+          .form-row input, .form-row textarea { width:100%; flex-basis:auto; }
+
+          /* Buttons full width for easy tapping */
+          .action-bar .btn, .actions .btn {
+            width:100%;
+            display:block;
+          }
+
+          /* Smaller paddings for table cells on mobile but keep readability */
+          table.table thead th, table.table tbody td { padding:12px 10px; font-size:0.95rem; }
+
+          /* Make card padding slightly tighter on narrow screens */
+          .card { padding:14px; margin-bottom:14px; }
+
+          /* Make tables look card-like */
+          .table-responsive { border-radius:10px; overflow:hidden; box-shadow: inset 0 0 0 1px #f1f3f5; }
+
+          /* Improve spacing for gallery list */
+          .gallery-preview { display:flex; flex-direction:column; gap:8px; }
+          .gallery-item { display:flex; gap:10px; align-items:center; }
+          .gallery-item img { width:64px; height:48px; object-fit:cover; border-radius:6px; }
+        }
+      `}</style>
+
+      {/* Header */}
+      <div className="card header">
         <h2>Admin Dashboard</h2>
-        <div style={{display:"flex", gap:8}}>
-          <button className="btn" onClick={fetchAll} style={{color:"white"}}>Refresh</button>
-          <button className="btn ghost" onClick={logout}>Logout</button>
+        <div className="header-controls">
+          <button className="btn small" onClick={fetchAll} style={{background:"#0d6efd"}}>Refresh</button>
+          <button className="btn ghost small" onClick={logout}>Logout</button>
         </div>
       </div>
 
@@ -141,28 +275,32 @@ export default function AdminDashboard(){
         <div className="form-row">
           <textarea placeholder="Objectives" rows="2" value={cObjectives} onChange={e=>setCObjectives(e.target.value)} />
         </div>
-        <div style={{display:"flex", gap:8}}>
+        <div className="action-bar">
           <button className="btn" onClick={addCourse}>Add Course</button>
         </div>
       </div>
 
       <div className="card">
         <h3>Existing Courses</h3>
-        <table className="table">
-          <thead><tr><th>Title</th><th>Duration</th><th>Actions</th></tr></thead>
-          <tbody>
-            {courses.map(c=>(
-              <tr key={c._id}>
-                <td>{c.title}</td>
-                <td className="small">{c.duration}</td>
-                <td>
-                  <button className="btn ghost" onClick={()=>{navigator.clipboard?.writeText(window.location.origin + "/course/" + c._id)}}>Copy Link</button>
-                  <button className="btn" onClick={()=>deleteCourse(c._id)}>Delete</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="table-responsive">
+          <table className="table">
+            <thead><tr><th>Title</th><th>Duration</th><th>Actions</th></tr></thead>
+            <tbody>
+              {courses.map(c=>(
+                <tr key={c._id}>
+                  <td>{c.title}</td>
+                  <td className="small">{c.duration}</td>
+                  <td>
+                    <div className="actions">
+                      <button className="btn ghost small" onClick={()=>{navigator.clipboard?.writeText(window.location.origin + "/course/" + c._id)}}>Copy Link</button>
+                      <button className="btn small" onClick={()=>deleteCourse(c._id)}>Delete</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* SUCCESS STORIES */}
@@ -178,25 +316,29 @@ export default function AdminDashboard(){
         <div className="form-row">
           <textarea placeholder="Content" rows="3" value={sContent} onChange={e=>setSContent(e.target.value)} />
         </div>
-        <div>
+        <div className="action-bar">
           <button className="btn" onClick={addStory}>Add Story</button>
         </div>
 
         <h4 style={{marginTop:16}}>Existing Stories</h4>
-        <table className="table">
-          <thead><tr><th>Student</th><th>Title</th><th>Actions</th></tr></thead>
-          <tbody>
-            {stories.map(s=>(
-              <tr key={s._id}>
-                <td>{s.studentName}</td>
-                <td className="small">{s.title}</td>
-                <td>
-                  <button className="btn" onClick={()=>deleteStory(s._id)}>Delete</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="table-responsive">
+          <table className="table">
+            <thead><tr><th>Student</th><th>Title</th><th>Actions</th></tr></thead>
+            <tbody>
+              {stories.map(s=>(
+                <tr key={s._id}>
+                  <td>{s.studentName}</td>
+                  <td className="small">{s.title}</td>
+                  <td>
+                    <div className="actions">
+                      <button className="btn small" onClick={()=>deleteStory(s._id)}>Delete</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* GALLERY */}
@@ -209,21 +351,23 @@ export default function AdminDashboard(){
         <div className="form-row">
           <input placeholder="Caption" value={gCaption} onChange={e=>setGCaption(e.target.value)} />
         </div>
-        <div><button className="btn" onClick={addGallery}>Add to Gallery</button></div>
+        <div className="action-bar"><button className="btn" onClick={addGallery}>Add to Gallery</button></div>
 
         <h4 style={{marginTop:12}}>Gallery</h4>
-        <table className="table">
-          <thead><tr><th>Title</th><th>Image</th><th>Actions</th></tr></thead>
-          <tbody>
-            {gallery.map(g=>(
-              <tr key={g._id}>
-                <td>{g.title}</td>
-                <td className="small">{g.imageUrl}</td>
-                <td><button className="btn" onClick={()=>deleteGallery(g._id)}>Delete</button></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="table-responsive">
+          <table className="table">
+            <thead><tr><th>Title</th><th>Image</th><th>Actions</th></tr></thead>
+            <tbody>
+              {gallery.map(g=>(
+                <tr key={g._id}>
+                  <td>{g.title}</td>
+                  <td className="small">{g.imageUrl}</td>
+                  <td><div className="actions"><button className="btn small" onClick={()=>deleteGallery(g._id)}>Delete</button></div></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* STUDENT SUBMISSIONS */}
@@ -232,19 +376,21 @@ export default function AdminDashboard(){
         {students.length === 0 ? (
           <p className="small">No submissions yet.</p>
         ) : (
-          <table className="table">
-            <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Submitted</th></tr></thead>
-            <tbody>
-              {students.map(s => (
-                <tr key={s._id}>
-                  <td>{s.name}</td>
-                  <td className="small">{s.email}</td>
-                  <td className="small">{s.phone}</td>
-                  <td className="small">{new Date(s.createdAt).toLocaleString()}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="table-responsive">
+            <table className="table">
+              <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Submitted</th></tr></thead>
+              <tbody>
+                {students.map(s => (
+                  <tr key={s._id}>
+                    <td>{s.name}</td>
+                    <td className="small">{s.email}</td>
+                    <td className="small">{s.phone}</td>
+                    <td className="small">{new Date(s.createdAt).toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </>
