@@ -30,6 +30,7 @@ export default function AdminLogin(){
       </div>
       <div style={{display:"flex", gap:8}}>
         <button className="btn" onClick={handleLogin} style={{color:"white"}}>Login</button>
+        
         {/* <button className="btn ghost" onClick={() => { setUsername("admin"); setPassword("admin123"); }}>Fill demo</button> */}
       </div>
       <p className="small">{msg}</p>
