@@ -10,6 +10,8 @@ import CourseDetails from "./Pages/CourseDetails";
 import AdminLogin from "./Pages/AdminLogin";
 import AdminDashboard from "./Pages/AdminDashboard";
 import ContactUs from "./Pages/ContactUs";
+import Gallery from "./Pages/Gallery";
+// import Gallery from "./Pages/Gallery";
 
 function App() {
   return (
@@ -19,7 +21,9 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/services" element={<Services />} />
-          <Route path="/about" element={<About />} />
+          <Route path="/gallery" element={<Gallery />} />
+          {/* <Route path="/about" element={<About />} /> */}
+          {/* <Route path="/gallery" element={<Gallery />} /> */}
           <Route path="/contactus" element={<ContactUs />} />
           <Route path="/course/:id" element={<CourseDetails />} />
 

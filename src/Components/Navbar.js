@@ -1,7 +1,46 @@
-import React from "react";
-import { Link } from "react-router-dom";
+import React, { useEffect } from "react";
+import { Link, useLocation } from "react-router-dom";
+
+// Navbar.jsx
+// - Auto-closes the Bootstrap mobile collapse when a Link is clicked or when the route changes.
+// - Uses Bootstrap's Collapse API if it's available on window.bootstrap, otherwise falls back to toggling the "show" class.
+// - Only attempts to close on small screens (width < 992) so desktop behavior is unchanged.
 
 export default function Navbar() {
+  const location = useLocation();
+
+  const closeNavbar = () => {
+    if (typeof window === "undefined") return;
+
+    // only close on mobile / collapsed breakpoint
+    if (window.innerWidth >= 992) return;
+
+    const navEl = document.getElementById("navbarNavDropdown");
+    if (!navEl) return;
+
+    // If Bootstrap JS is loaded on the page (bootstrap.bundle), use its Collapse API for proper animation/state
+    // (Bootstrap 5 exposes window.bootstrap when the bundle is included globally)
+    const bs = window && window.bootstrap ? window.bootstrap : null;
+    if (bs && bs.Collapse) {
+      const instance = bs.Collapse.getInstance(navEl) || new bs.Collapse(navEl, { toggle: false });
+      instance.hide();
+      return;
+    }
+
+    // Fallback: remove the 'show' class and fix aria-expanded on the toggler
+    if (navEl.classList.contains("show")) {
+      navEl.classList.remove("show");
+      const toggler = document.querySelector(".navbar-toggler");
+      if (toggler) toggler.setAttribute("aria-expanded", "false");
+    }
+  };
+
+  // Close the navbar whenever the location changes (useful for programmatic navigation)
+  useEffect(() => {
+    closeNavbar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
+
   return (
     <>
       <style>{`
@@ -78,8 +117,8 @@ export default function Navbar() {
       <nav className="navbar navbar-expand-lg navbar-dark app-navbar sticky-top">
         <div className="container-fluid">
           {/* Brand */}
-          <Link className="navbar-brand fs-4" to="/">
-            BRAINOVEN
+          <Link className="navbar-brand fs-4" to="/" onClick={closeNavbar}>
+              <img src="/brainoven-logo.jpg" alt="BrainOven" height="40"  />
           </Link>
 
           {/* Toggler - Traditional Dropdown Style */}
@@ -99,22 +138,40 @@ export default function Navbar() {
           <div className="collapse navbar-collapse" id="navbarNavDropdown">
             <ul className="navbar-nav me-auto mb-2 mb-lg-0 ms-lg-4">
               <li className="nav-item">
-                <Link className="nav-link" to="/">Home</Link>
+                <Link className="nav-link" to="/" onClick={closeNavbar}>
+                  Home
+                </Link>
               </li>
               <li className="nav-item">
-                <Link className="nav-link" to="/services">Services</Link>
+                <Link className="nav-link" to="/services" onClick={closeNavbar}>
+                  Services
+                </Link>
               </li>
               <li className="nav-item">
-                <Link className="nav-link" to="/about">About</Link>
+                <Link className="nav-link" to="/gallery" onClick={closeNavbar}>
+                  Gallery
+                </Link>
               </li>
+              {/* <li className="nav-item">
+                <Link className="nav-link" to="/about" onClick={closeNavbar}>
+                  About
+                </Link>
+              </li> */}
+              {/* <li className="nav-item">
+                <Link className="nav-link" to="/gallery" onClick={closeNavbar}>
+                  Gallery
+                </Link>
+              </li> */}
               <li className="nav-item">
-                <Link className="nav-link" to="/contactus">Contact Us</Link>
+                <Link className="nav-link" to="/contactus" onClick={closeNavbar}>
+                  Contact Us
+                </Link>
               </li>
             </ul>
 
             {/* Admin Button */}
             <div className="admin-mobile-container">
-              <Link to="/admin" className="btn admin-btn d-block d-lg-inline-block">
+              <Link to="/admin" className="btn admin-btn d-block d-lg-inline-block" onClick={closeNavbar}>
                 Admin
               </Link>
             </div>

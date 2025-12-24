@@ -27,7 +27,7 @@ const contentScrollItemStyle = {
 
 // Placeholder for default card images
 const imagePlaceholderUrl =
-  "https://images.unsplash.com/photo-1549692520-2228801d0f81?auto=format&fit=crop&w=600&q=80";
+  "https://www.collegevaluesonline.com/wp-content/uploads/2024/06/Innovative-Colleges-with-Low-Cost-Hybrid-Learning-Options-featured-image.jpg";
 
 export default function Home() {
   const [courses, setCourses] = useState([]);
@@ -298,7 +298,7 @@ export default function Home() {
             <div className="col-lg-4 col-md-6">
               <div className="card h-100 shadow-sm p-4 border-0">
                 <h3 className="card-title fs-5 fw-bold text-dark">
-                  Why the name BrainOven? 💡
+                  Why the name BrainOven?
                 </h3>
                 <p className="card-text text-muted">
                   At <strong>BrainOven</strong> we <strong>'bake' raw talent</strong>{" "}
@@ -311,7 +311,7 @@ export default function Home() {
             {/* Mission */}
             <div className="col-lg-4 col-md-6">
               <div className="card h-100 shadow-sm p-4 border-0">
-                <h3 className="card-title fs-5 fw-bold text-dark">Mission 🎯</h3>
+                <h3 className="card-title fs-5 fw-bold text-dark">Mission </h3>
                 <p className="card-text text-muted">
                   “Transforming raw talent into skilled tech professionals” by
                   focusing on practical, industry-relevant skills.
@@ -323,7 +323,7 @@ export default function Home() {
             <div className="col-lg-4 col-md-6">
               <div className="card h-100 shadow-sm p-4 border-0">
                 <h3 className="card-title fs-5 fw-bold text-dark">
-                  Trainers' Experience 👨‍💻
+                  Trainers' Experience 
                 </h3>
                 <p className="card-text text-muted">
                   Our trainers bring years of <strong>real industry

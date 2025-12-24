@@ -79,7 +79,7 @@ export default function ContactUs() {
                     <p className="text-muted small mb-4">
                         Fill the form below and our team will reach out. For instant **WhatsApp**:
                         {" "}
-                        <a href="https://wa.me/919876543210" target="_blank" rel="noreferrer" className="text-dark fw-bold text-decoration-none">+91 98765 43210</a>
+                        <a href="https://wa.me/919611360608" target="_blank" rel="noreferrer" className="text-dark fw-bold text-decoration-none">+91 9611360608</a>
                     </p>
 
                     <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>

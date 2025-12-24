@@ -23,7 +23,7 @@ const FloatingWhatsAppButton = () => {
   };
 
   const redirectToWhatsApp = () => {
-    const phoneNumber = '919390244319';
+    const phoneNumber = '919611360608';
     const message = encodeURIComponent('I want to inquire about your service.');
     const url = `https://wa.me/${phoneNumber}?text=${message}`;
     window.open(url, '_blank');
