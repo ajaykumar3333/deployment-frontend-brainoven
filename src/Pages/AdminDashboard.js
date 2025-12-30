@@ -1,72 +1,95 @@
+// frontend/src/pages/AdminDashboard.js
 import React, { useEffect, useState } from "react";
-import API from "../api";
 import { useNavigate } from "react-router-dom";
+import API from "../api";
 import Accordion from "../Components/Accordion";
 
-function authConfig(){
+/* ================= helpers ================= */
+const authConfig = () => {
   const token = localStorage.getItem("brainoven_token");
-  return { headers: { Authorization: token ? `Bearer ${token}` : "" } };
-}
+  return token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+};
 
-export default function AdminDashboard(){
+const normalize = (res) => {
+  const p = res?.data ?? res;
+  if (Array.isArray(p)) return p;
+  if (Array.isArray(p?.data)) return p.data;
+  if (Array.isArray(p?.items)) return p.items;
+  return [];
+};
+
+const getId = (x) => x?._id || x?.id;
+
+/* ================= component ================= */
+export default function AdminDashboard() {
   const navigate = useNavigate();
+
+  /* ---------- data ---------- */
   const [courses, setCourses] = useState([]);
   const [stories, setStories] = useState([]);
   const [gallery, setGallery] = useState([]);
   const [faqs, setFaqs] = useState([]);
   const [students, setStudents] = useState([]);
 
-  // course form
+  /* ---------- ui ---------- */
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  /* ---------- forms ---------- */
   const [cTitle, setCTitle] = useState("");
   const [cSyllabus, setCSyllabus] = useState("");
   const [cDuration, setCDuration] = useState("");
   const [cObjectives, setCObjectives] = useState("");
   const [cOutcome, setCOutcome] = useState("");
 
-  // story form
   const [sName, setSName] = useState("");
   const [sTitle, setSTitle] = useState("");
   const [sContent, setSContent] = useState("");
   const [sImage, setSImage] = useState("");
 
-  // gallery form
   const [gTitle, setGTitle] = useState("");
   const [gImage, setGImage] = useState("");
-  const [gCaption, setGCaption] = useState("");
 
-  // Accordion / FAQ form
   const [fqQuestion, setFqQuestion] = useState("");
   const [fqAnswer, setFqAnswer] = useState("");
 
+  /* ================= lifecycle ================= */
   useEffect(() => {
     const token = localStorage.getItem("brainoven_token");
-    if(!token) navigate("/admin");
+    if (!token) {
+      navigate("/admin");
+      return;
+    }
     fetchAll();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
 
+  /* ================= fetch all ================= */
   const fetchAll = async () => {
+    setLoading(true);
+    setError("");
     try {
-      const [cRes, sRes, gRes, stRes, fRes] = await Promise.all([
+      const [cRes, sRes, gRes, fRes, stRes] = await Promise.all([
         API.get("/courses"),
         API.get("/successStories"),
-        API.get("/gallery"),
-        API.get("/students/all", authConfig()), // protected endpoint
-        API.get("/faqs"), // public faq list
+        API.get("/gallery").catch(() => ({ data: [] })),
+        API.get("/faqs"),
+        API.get("/students/all", authConfig()),
       ]);
 
-      setCourses(cRes.data || []);
-      setStories(sRes.data || []);
-      setGallery(gRes.data || []);
-      setStudents(stRes.data || []);
-      setFaqs(fRes.data || []);
+      setCourses(normalize(cRes));
+      setStories(normalize(sRes));
+      setGallery(normalize(gRes));
+      setFaqs(normalize(fRes));
+      setStudents(normalize(stRes));
     } catch (e) {
       console.error(e);
-      // if unauthorized, redirect to login
+      setError("Failed to load admin data");
       if (e?.response?.status === 401) {
         localStorage.removeItem("brainoven_token");
         navigate("/admin");
       }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -75,406 +98,231 @@ export default function AdminDashboard(){
     navigate("/");
   };
 
-  // Course handlers
+  /* ================= handlers ================= */
   const addCourse = async () => {
     try {
-      const res = await API.post("/admin/content/courses", {
-        title: cTitle, syllabus: cSyllabus, duration: cDuration, objectives: cObjectives, outcome: cOutcome
-      }, authConfig());
-      setCourses(prev=>[res.data, ...prev]);
+      const res = await API.post(
+        "/admin/content/courses",
+        { title: cTitle, syllabus: cSyllabus, duration: cDuration, objectives: cObjectives, outcome: cOutcome },
+        authConfig()
+      );
+      const created = normalize(res)[0];
+      if (created) setCourses((p) => [created, ...p]);
       setCTitle(""); setCSyllabus(""); setCDuration(""); setCObjectives(""); setCOutcome("");
-    } catch (e) { console.error(e); alert("Error adding course (auth?)") }
+    } catch {
+      alert("Error adding course");
+    }
   };
 
   const deleteCourse = async (id) => {
-    if(!window.confirm("Delete course?")) return;
-    try {
-      await API.delete(`/admin/content/courses/${id}`, authConfig());
-      setCourses(prev => prev.filter(p=>p._id !== id));
-    } catch (e) { console.error(e); alert("Error deleting"); }
+    if (!window.confirm("Delete course?")) return;
+    await API.delete(`/admin/content/courses/${id}`, authConfig());
+    setCourses((p) => p.filter((x) => getId(x) !== id));
   };
 
-  // story handlers
   const addStory = async () => {
     try {
-      const res = await API.post("/admin/content/successStories", {
-        studentName: sName, title: sTitle, content: sContent, imageUrl: sImage
-      }, authConfig());
-      setStories(prev=>[res.data, ...prev]);
+      const res = await API.post(
+        "/admin/content/successStories",
+        { studentName: sName, title: sTitle, content: sContent, imageUrl: sImage },
+        authConfig()
+      );
+      const created = normalize(res)[0];
+      if (created) setStories((p) => [created, ...p]);
       setSName(""); setSTitle(""); setSContent(""); setSImage("");
-    } catch (e) { console.error(e); alert("Error adding story") }
+    } catch {
+      alert("Error adding story");
+    }
   };
 
   const deleteStory = async (id) => {
-    if(!window.confirm("Delete story?")) return;
-    try { await API.delete(`/admin/content/successStories/${id}`, authConfig()); setStories(prev => prev.filter(p=>p._id !== id)); } catch(e){ console.error(e); alert("Error") }
+    if (!window.confirm("Delete story?")) return;
+    await API.delete(`/admin/content/successStories/${id}`, authConfig());
+    setStories((p) => p.filter((x) => getId(x) !== id));
   };
 
-  // gallery handlers
   const addGallery = async () => {
     try {
-      const res = await API.post("/admin/content/gallery", { title: gTitle, imageUrl: gImage, caption: gCaption }, authConfig());
-      setGallery(prev=>[res.data, ...prev]);
-      setGTitle(""); setGImage(""); setGCaption("");
-    } catch (e) { console.error(e); alert("Error adding gallery item") }
+      const res = await API.post(
+        "/admin/content/gallery",
+        { title: gTitle, imageUrl: gImage },
+        authConfig()
+      );
+      const created = normalize(res)[0];
+      if (created) setGallery((p) => [created, ...p]);
+      setGTitle(""); setGImage("");
+    } catch {
+      alert("Error adding gallery image");
+    }
   };
 
   const deleteGallery = async (id) => {
-    if(!window.confirm("Delete item?")) return;
-    try { await API.delete(`/admin/content/gallery/${id}`, authConfig()); setGallery(prev => prev.filter(p=>p._id !== id)); } catch(e){ console.error(e); alert("Error") }
+    if (!window.confirm("Delete image?")) return;
+    await API.delete(`/admin/content/gallery/${id}`, authConfig());
+    setGallery((p) => p.filter((x) => getId(x) !== id));
   };
 
-  // FAQ handlers
   const addFaq = async () => {
     try {
-      const res = await API.post("/admin/content/faqs", { question: fqQuestion, answer: fqAnswer }, authConfig());
-      setFaqs(prev => [res.data, ...prev]);
+      const res = await API.post(
+        "/admin/content/faqs",
+        { question: fqQuestion, answer: fqAnswer },
+        authConfig()
+      );
+      const created = normalize(res)[0];
+      if (created) setFaqs((p) => [created, ...p]);
       setFqQuestion(""); setFqAnswer("");
-    } catch (e) {
-      console.error(e);
-      alert("Error adding FAQ (auth?)");
+    } catch {
+      alert("Error adding FAQ");
     }
   };
 
   const deleteFaq = async (id) => {
     if (!window.confirm("Delete FAQ?")) return;
-    try {
-      await API.delete(`/admin/content/faqs/${id}`, authConfig());
-      setFaqs(prev => prev.filter(f => f._id !== id));
-    } catch (e) {
-      console.error(e);
-      alert("Error deleting FAQ");
-    }
+    await API.delete(`/admin/content/faqs/${id}`, authConfig());
+    setFaqs((p) => p.filter((x) => getId(x) !== id));
   };
 
+  /* ================= render ================= */
   return (
     <>
-      {/* --------- Mobile / Visual Enhancements (no JS changes) --------- */}
       <style>{`
-        :root{
-          --card-bg: #ffffff;
-          --muted: #6c757d;
-          --accent: #212529;
-          --soft: #f6f7f8;
-        }
-
-        /* Card look */
-        .card {
-          background: var(--card-bg);
-          border-radius: 12px;
-          padding: 18px;
-          margin-bottom: 18px;
-          box-shadow: 0 6px 18px rgba(20,20,30,0.04);
-        }
-
-        /* Header card layout */
-        .card.header {
-          display:flex;
-          justify-content:space-between;
-          align-items:center;
-          gap:12px;
-        }
-
-        .card.header h2 { margin:0; font-size:1.1rem }
-        .header-controls { display:flex; gap:8px; align-items:center; }
-
-        /* Buttons */
-        .btn {
-          background: var(--accent);
-          color: #fff;
-          border: none;
-          padding: 8px 12px;
-          border-radius: 8px;
-          cursor:pointer;
-          font-weight:600;
-        }
-        .btn.ghost {
-          background: transparent;
-          color: var(--accent);
-          border: 1px solid #e6e7ea;
-          font-weight:600;
-        }
-        .btn.small { padding:6px 10px; font-size:0.95rem }
-
-        /* Form rows */
-        .form-row {
-          display:flex;
-          gap:10px;
-          margin-bottom:10px;
-          align-items:center;
-          flex-wrap:wrap;
-        }
-        .form-row input, .form-row textarea {
-          flex:1 1 220px;
-          padding:10px 12px;
-          border-radius:8px;
-          border:1px solid #e7e8eb;
-          font-size:0.95rem;
-          background: #fbfcfd;
-        }
-        .form-row textarea { min-height:72px; }
-
-        /* Make action controls more accessible on mobile */
-        .action-bar { display:flex; gap:8px; margin-top:6px; }
-        .action-bar .btn { flex:0 0 auto; }
-
-        /* Tables - responsive */
-        .table-responsive { overflow-x:auto; -webkit-overflow-scrolling:touch; }
-        table.table { width:100%; border-collapse:collapse; min-width:600px; }
-        table.table thead th {
-          text-align:left;
-          padding:10px 12px;
-          color:var(--muted);
-          font-size:0.9rem;
-          border-bottom:1px solid #f1f3f5;
-        }
-        table.table tbody td {
-          padding:10px 12px;
-          border-bottom:1px solid #f6f7f8;
-        }
-        table.table tbody tr:nth-child(odd) { background: #ffffff; }
-        table.table tbody tr:nth-child(even) { background: #fbfcfd; }
-
-        /* Actions column - stack on mobile */
-        .actions { display:flex; gap:8px; flex-wrap:wrap; }
-        .actions .btn { padding:6px 10px; font-size:0.9rem }
-
-        /* Small text */
-        .small { color:var(--muted); font-size:0.9rem; }
-
-        /* Sub-head spacing */
-        h3, h4 { margin:8px 0 12px 0; }
-
-        /* Divider helper */
-        .divider { height:1px; background:#f1f3f5; margin:12px 0; border-radius:2px; }
-
-        /* ---------- MOBILE-SPECIFIC ---------- */
-        @media (max-width: 768px) {
-
-          /* Header card stacks */
-          .card.header { flex-direction:column; align-items:flex-start; }
-
-          .header-controls { width:100%; display:flex; gap:8px; }
-
-          /* Form rows become vertical stacks */
-          .form-row { flex-direction:column; }
-          .form-row input, .form-row textarea { width:100%; flex-basis:auto; }
-
-          /* Buttons full width for easy tapping */
-          .action-bar .btn, .actions .btn {
-            width:100%;
-            display:block;
-          }
-
-          /* Smaller paddings for table cells on mobile but keep readability */
-          table.table thead th, table.table tbody td { padding:12px 10px; font-size:0.95rem; }
-
-          /* Make card padding slightly tighter on narrow screens */
-          .card { padding:14px; margin-bottom:14px; }
-
-          /* Make tables look card-like */
-          .table-responsive { border-radius:10px; overflow:hidden; box-shadow: inset 0 0 0 1px #f1f3f5; }
-
-          /* Improve spacing for gallery list */
-          .gallery-preview { display:flex; flex-direction:column; gap:8px; }
-          .gallery-item { display:flex; gap:10px; align-items:center; }
-          .gallery-item img { width:64px; height:48px; object-fit:cover; border-radius:6px; }
-        }
+        :root{ --card-bg:#fff; --muted:#6c757d; --accent:#212529 }
+        .admin{ max-width:1200px; margin:auto; padding:16px }
+        .card{ background:#fff; border-radius:12px; padding:18px; margin-bottom:18px; box-shadow:0 6px 18px rgba(20,20,30,0.04) }
+        .card.header{ display:flex; justify-content:space-between; align-items:center }
+        .header-controls{ display:flex; gap:8px }
+        button{ background:var(--accent); color:#fff; border:none; padding:8px 12px; border-radius:8px; cursor:pointer }
+        button.ghost{ background:transparent; color:var(--accent); border:1px solid #ddd }
+        button.danger{ background:#dc3545; padding:4px 8px; font-size:12px }
+        input, textarea{ width:100%; margin-bottom:8px; padding:10px; border-radius:8px; border:1px solid #ddd }
+        table{ width:100%; border-collapse:collapse }
+        th{ text-align:left; padding:8px; border-bottom:2px solid #eee; color:var(--muted) }
+        td{ padding:8px; border-bottom:1px solid #eee }
+        .gallery{ display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:12px }
+        .thumb img{ width:100%; height:120px; object-fit:cover; border-radius:8px }
+        .error{ color:#dc3545 }
+        .faq-item{ display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f9f9f9 }
       `}</style>
 
-      {/* Header */}
-      <div className="card header">
-        <h2>Admin Dashboard</h2>
-        <div className="header-controls">
-          <button className="btn small" onClick={fetchAll} style={{background:"#0d6efd"}}>Refresh</button>
-          <button className="btn ghost small" onClick={logout}>Logout</button>
-        </div>
-      </div>
-
-      {/* COURSES (existing) */}
-      <div className="card">
-        <h3>Add Course</h3>
-        <div className="form-row">
-          <input placeholder="Title" value={cTitle} onChange={e=>setCTitle(e.target.value)} />
-        </div>
-        <div className="form-row">
-          <input placeholder="Duration" value={cDuration} onChange={e=>setCDuration(e.target.value)} />
-          <input placeholder="Outcome" value={cOutcome} onChange={e=>setCOutcome(e.target.value)} />
-        </div>
-        <div className="form-row">
-          <textarea placeholder="Syllabus" rows="3" value={cSyllabus} onChange={e=>setCSyllabus(e.target.value)} />
-        </div>
-        <div className="form-row">
-          <textarea placeholder="Objectives" rows="2" value={cObjectives} onChange={e=>setCObjectives(e.target.value)} />
-        </div>
-        <div className="action-bar">
-          <button className="btn" onClick={addCourse}>Add Course</button>
-        </div>
-      </div>
-
-      <div className="card">
-        <h3>Existing Courses</h3>
-        <div className="table-responsive">
-          <table className="table">
-            <thead><tr><th>Title</th><th>Duration</th><th>Actions</th></tr></thead>
-            <tbody>
-              {courses.map(c=>(
-                <tr key={c._id}>
-                  <td>{c.title}</td>
-                  <td className="small">{c.duration}</td>
-                  <td>
-                    <div className="actions">
-                      <button className="btn ghost small" onClick={()=>{navigator.clipboard?.writeText(window.location.origin + "/course/" + c._id)}}>Copy Link</button>
-                      <button className="btn small" onClick={()=>deleteCourse(c._id)}>Delete</button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* SUCCESS STORIES */}
-      <div className="card">
-        <h3>Add Success Story</h3>
-        <div className="form-row">
-          <input placeholder="Student name" value={sName} onChange={e=>setSName(e.target.value)} />
-          <input placeholder="Title" value={sTitle} onChange={e=>setSTitle(e.target.value)} />
-        </div>
-        <div className="form-row">
-          <input placeholder="Image URL" value={sImage} onChange={e=>setSImage(e.target.value)} />
-        </div>
-        <div className="form-row">
-          <textarea placeholder="Content" rows="3" value={sContent} onChange={e=>setSContent(e.target.value)} />
-        </div>
-        <div className="action-bar">
-          <button className="btn" onClick={addStory}>Add Story</button>
-        </div>
-
-        <h4 style={{marginTop:16}}>Existing Stories</h4>
-        <div className="table-responsive">
-          <table className="table">
-            <thead><tr><th>Student</th><th>Title</th><th>Actions</th></tr></thead>
-            <tbody>
-              {stories.map(s=>(
-                <tr key={s._id}>
-                  <td>{s.studentName}</td>
-                  <td className="small">{s.title}</td>
-                  <td>
-                    <div className="actions">
-                      <button className="btn small" onClick={()=>deleteStory(s._id)}>Delete</button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* GALLERY */}
-      <div className="card">
-        <h3>Add Gallery Item</h3>
-        <div className="form-row">
-          <input placeholder="Title" value={gTitle} onChange={e=>setGTitle(e.target.value)} />
-          <input placeholder="Image URL" value={gImage} onChange={e=>setGImage(e.target.value)} />
-        </div>
-        <div className="form-row">
-          <input placeholder="Caption" value={gCaption} onChange={e=>setGCaption(e.target.value)} />
-        </div>
-        <div className="action-bar"><button className="btn" onClick={addGallery}>Add to Gallery</button></div>
-
-        <h4 style={{marginTop:12}}>Gallery</h4>
-        <div className="table-responsive">
-          <table className="table">
-            <thead><tr><th>Title</th><th>Image</th><th>Actions</th></tr></thead>
-            <tbody>
-              {gallery.map(g=>(
-                <tr key={g._id}>
-                  <td>{g.title}</td>
-                  <td className="small">{g.imageUrl}</td>
-                  <td><div className="actions"><button className="btn small" onClick={()=>deleteGallery(g._id)}>Delete</button></div></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* FAQS */}
-<div className="card">
-  <h3>Manage FAQs</h3>
-
-  <div className="form-row">
-    <input placeholder="Question" value={fqQuestion} onChange={e => setFqQuestion(e.target.value)} />
-  </div>
-  <div className="form-row">
-    <textarea placeholder="Answer (HTML allowed)" rows="3" value={fqAnswer} onChange={e => setFqAnswer(e.target.value)} />
-  </div>
-  <div className="action-bar">
-    <button className="btn" onClick={addFaq}>Add FAQ</button>
-  </div>
-
-  <h4 style={{ marginTop: 12 }}>Existing FAQs</h4>
-
-  {faqs.length === 0 ? (
-    <p className="small">No FAQs yet.</p>
-  ) : (
-    <>
-      <div style={{ marginBottom: 12 }}>
-        {/* render accordion for preview */}
-        <Accordion faqs={faqs} />
-      </div>
-
-      {/* quick management table */}
-      <div className="table-responsive">
-        <table className="table">
-          <thead>
-            <tr><th>Question</th><th>Actions</th></tr>
-          </thead>
-          <tbody>
-            {faqs.map(f => (
-              <tr key={f._id}>
-                <td>{f.question}</td>
-                <td>
-                  <div className="actions">
-                    {/* Delete */}
-                    <button className="btn small" onClick={() => deleteFaq(f._id)}>Delete</button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </>
-  )}
-</div>
-
-
-      {/* STUDENT SUBMISSIONS */}
-      <div className="card">
-        <h3>Student Enquiries</h3>
-        {students.length === 0 ? (
-          <p className="small">No submissions yet.</p>
-        ) : (
-          <div className="table-responsive">
-            <table className="table">
-              <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Submitted</th></tr></thead>
-              <tbody>
-                {students.map(s => (
-                  <tr key={s._id}>
-                    <td>{s.name}</td>
-                    <td className="small">{s.email}</td>
-                    <td className="small">{s.phone}</td>
-                    <td className="small">{new Date(s.createdAt).toLocaleString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      <div className="admin">
+        <div className="card header">
+          <h2>Admin Dashboard</h2>
+          <div className="header-controls">
+            <button onClick={fetchAll}>Refresh</button>
+            <button className="ghost" onClick={logout}>Logout</button>
           </div>
-        )}
+        </div>
+
+        {loading && <p>Loading…</p>}
+        {error && <p className="error">{error}</p>}
+
+        {/* COURSES */}
+        <div className="card">
+          <h3>Add Course</h3>
+          <input placeholder="Title" value={cTitle} onChange={e => setCTitle(e.target.value)} />
+          <input placeholder="Duration" value={cDuration} onChange={e => setCDuration(e.target.value)} />
+          <textarea placeholder="Syllabus" value={cSyllabus} onChange={e => setCSyllabus(e.target.value)} />
+          <textarea placeholder="Objectives" value={cObjectives} onChange={e => setCObjectives(e.target.value)} />
+          <textarea placeholder="Outcome" value={cOutcome} onChange={e => setCOutcome(e.target.value)} />
+          <button onClick={addCourse}>Add Course</button>
+
+          <table>
+            <tbody>
+              {courses.map(c => (
+                <tr key={getId(c)}>
+                  <td>{c.title}</td>
+                  <td>{c.duration}</td>
+                  <td><button onClick={() => deleteCourse(getId(c))}>Delete</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* STORIES */}
+        <div className="card">
+          <h3>Success Stories</h3>
+          <input placeholder="Student Name" value={sName} onChange={e => setSName(e.target.value)} />
+          <input placeholder="Title" value={sTitle} onChange={e => setSTitle(e.target.value)} />
+          <input placeholder="Image URL" value={sImage} onChange={e => setSImage(e.target.value)} />
+          <textarea placeholder="Content" value={sContent} onChange={e => setSContent(e.target.value)} />
+          <button onClick={addStory}>Add Story</button>
+
+          {stories.map(s => (
+            <p key={getId(s)}>
+              <strong>{s.studentName}</strong> — {s.title}
+              <button onClick={() => deleteStory(getId(s))}>Delete</button>
+            </p>
+          ))}
+        </div>
+
+        {/* GALLERY */}
+        <div className="card">
+          <h3>Gallery</h3>
+          <input placeholder="Title" value={gTitle} onChange={e => setGTitle(e.target.value)} />
+          <input placeholder="Image URL" value={gImage} onChange={e => setGImage(e.target.value)} />
+          <button onClick={addGallery}>Add Image</button>
+
+          <div className="gallery">
+            {gallery.map(g => (
+              <div key={getId(g)} className="thumb">
+                <img src={g.imageUrl} alt="" />
+                <button onClick={() => deleteGallery(getId(g))}>Delete</button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* FAQ */}
+        <div className="card">
+          <h3>FAQs</h3>
+          <input placeholder="Question" value={fqQuestion} onChange={e => setFqQuestion(e.target.value)} />
+          <textarea placeholder="Answer" value={fqAnswer} onChange={e => setFqAnswer(e.target.value)} />
+          <button onClick={addFaq}>Add FAQ</button>
+          
+          <div style={{ marginTop: '16px' }}>
+            <h4>Existing FAQs (Manage)</h4>
+            {faqs.map(f => (
+              <div key={getId(f)} className="faq-item">
+                <span>{f.question}</span>
+                <button className="danger" onClick={() => deleteFaq(getId(f))}>Delete</button>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ marginTop: '16px' }}>
+            <h4>Preview</h4>
+            {faqs.length > 0 && <Accordion faqs={faqs} />}
+          </div>
+        </div>
+
+        {/* STUDENTS */}
+        <div className="card">
+          <h3>Student Enquiries</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {students.map(s => (
+                <tr key={getId(s)}>
+                  <td>{s.name}</td>
+                  <td>{s.email}</td>
+                  <td>{s.phone}</td>
+                  <td style={{ fontSize: '12px', color: 'var(--muted)' }}>
+                    {new Date(s.createdAt || Date.now()).toLocaleDateString()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </>
   );
