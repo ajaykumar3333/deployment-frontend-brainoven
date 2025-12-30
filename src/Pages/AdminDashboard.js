@@ -1,7 +1,7 @@
-// frontend/src/pages/AdminDashboard.js
 import React, { useEffect, useState } from "react";
 import API from "../api";
 import { useNavigate } from "react-router-dom";
+import Accordion from "../Components/Accordion";
 
 function authConfig(){
   const token = localStorage.getItem("brainoven_token");
@@ -13,6 +13,7 @@ export default function AdminDashboard(){
   const [courses, setCourses] = useState([]);
   const [stories, setStories] = useState([]);
   const [gallery, setGallery] = useState([]);
+  const [faqs, setFaqs] = useState([]);
   const [students, setStudents] = useState([]);
 
   // course form
@@ -33,28 +34,36 @@ export default function AdminDashboard(){
   const [gImage, setGImage] = useState("");
   const [gCaption, setGCaption] = useState("");
 
+  // Accordion / FAQ form
+  const [fqQuestion, setFqQuestion] = useState("");
+  const [fqAnswer, setFqAnswer] = useState("");
+
   useEffect(() => {
     const token = localStorage.getItem("brainoven_token");
     if(!token) navigate("/admin");
     fetchAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
 
   const fetchAll = async () => {
     try {
-      const [cRes, sRes, gRes, stRes] = await Promise.all([
+      const [cRes, sRes, gRes, stRes, fRes] = await Promise.all([
         API.get("/courses"),
         API.get("/successStories"),
         API.get("/gallery"),
-        API.get("/students/all", authConfig()) // protected endpoint
+        API.get("/students/all", authConfig()), // protected endpoint
+        API.get("/faqs"), // public faq list
       ]);
-      setCourses(cRes.data);
-      setStories(sRes.data);
-      setGallery(gRes.data);
+
+      setCourses(cRes.data || []);
+      setStories(sRes.data || []);
+      setGallery(gRes.data || []);
       setStudents(stRes.data || []);
+      setFaqs(fRes.data || []);
     } catch (e) {
       console.error(e);
       // if unauthorized, redirect to login
-      if (e.response && e.response.status === 401) {
+      if (e?.response?.status === 401) {
         localStorage.removeItem("brainoven_token");
         navigate("/admin");
       }
@@ -74,7 +83,7 @@ export default function AdminDashboard(){
       }, authConfig());
       setCourses(prev=>[res.data, ...prev]);
       setCTitle(""); setCSyllabus(""); setCDuration(""); setCObjectives(""); setCOutcome("");
-    } catch (e) { alert("Error adding course (auth?)") }
+    } catch (e) { console.error(e); alert("Error adding course (auth?)") }
   };
 
   const deleteCourse = async (id) => {
@@ -82,7 +91,7 @@ export default function AdminDashboard(){
     try {
       await API.delete(`/admin/content/courses/${id}`, authConfig());
       setCourses(prev => prev.filter(p=>p._id !== id));
-    } catch (e) { alert("Error deleting"); }
+    } catch (e) { console.error(e); alert("Error deleting"); }
   };
 
   // story handlers
@@ -93,12 +102,12 @@ export default function AdminDashboard(){
       }, authConfig());
       setStories(prev=>[res.data, ...prev]);
       setSName(""); setSTitle(""); setSContent(""); setSImage("");
-    } catch (e) { alert("Error adding story") }
+    } catch (e) { console.error(e); alert("Error adding story") }
   };
 
   const deleteStory = async (id) => {
     if(!window.confirm("Delete story?")) return;
-    try { await API.delete(`/admin/content/successStories/${id}`, authConfig()); setStories(prev => prev.filter(p=>p._id !== id)); } catch(e){ alert("Error") }
+    try { await API.delete(`/admin/content/successStories/${id}`, authConfig()); setStories(prev => prev.filter(p=>p._id !== id)); } catch(e){ console.error(e); alert("Error") }
   };
 
   // gallery handlers
@@ -107,12 +116,35 @@ export default function AdminDashboard(){
       const res = await API.post("/admin/content/gallery", { title: gTitle, imageUrl: gImage, caption: gCaption }, authConfig());
       setGallery(prev=>[res.data, ...prev]);
       setGTitle(""); setGImage(""); setGCaption("");
-    } catch (e) { alert("Error adding gallery item") }
+    } catch (e) { console.error(e); alert("Error adding gallery item") }
   };
 
   const deleteGallery = async (id) => {
     if(!window.confirm("Delete item?")) return;
-    try { await API.delete(`/admin/content/gallery/${id}`, authConfig()); setGallery(prev => prev.filter(p=>p._id !== id)); } catch(e){ alert("Error") }
+    try { await API.delete(`/admin/content/gallery/${id}`, authConfig()); setGallery(prev => prev.filter(p=>p._id !== id)); } catch(e){ console.error(e); alert("Error") }
+  };
+
+  // FAQ handlers
+  const addFaq = async () => {
+    try {
+      const res = await API.post("/admin/content/faqs", { question: fqQuestion, answer: fqAnswer }, authConfig());
+      setFaqs(prev => [res.data, ...prev]);
+      setFqQuestion(""); setFqAnswer("");
+    } catch (e) {
+      console.error(e);
+      alert("Error adding FAQ (auth?)");
+    }
+  };
+
+  const deleteFaq = async (id) => {
+    if (!window.confirm("Delete FAQ?")) return;
+    try {
+      await API.delete(`/admin/content/faqs/${id}`, authConfig());
+      setFaqs(prev => prev.filter(f => f._id !== id));
+    } catch (e) {
+      console.error(e);
+      alert("Error deleting FAQ");
+    }
   };
 
   return (
@@ -369,6 +401,57 @@ export default function AdminDashboard(){
           </table>
         </div>
       </div>
+
+      {/* FAQS */}
+<div className="card">
+  <h3>Manage FAQs</h3>
+
+  <div className="form-row">
+    <input placeholder="Question" value={fqQuestion} onChange={e => setFqQuestion(e.target.value)} />
+  </div>
+  <div className="form-row">
+    <textarea placeholder="Answer (HTML allowed)" rows="3" value={fqAnswer} onChange={e => setFqAnswer(e.target.value)} />
+  </div>
+  <div className="action-bar">
+    <button className="btn" onClick={addFaq}>Add FAQ</button>
+  </div>
+
+  <h4 style={{ marginTop: 12 }}>Existing FAQs</h4>
+
+  {faqs.length === 0 ? (
+    <p className="small">No FAQs yet.</p>
+  ) : (
+    <>
+      <div style={{ marginBottom: 12 }}>
+        {/* render accordion for preview */}
+        <Accordion faqs={faqs} />
+      </div>
+
+      {/* quick management table */}
+      <div className="table-responsive">
+        <table className="table">
+          <thead>
+            <tr><th>Question</th><th>Actions</th></tr>
+          </thead>
+          <tbody>
+            {faqs.map(f => (
+              <tr key={f._id}>
+                <td>{f.question}</td>
+                <td>
+                  <div className="actions">
+                    {/* Delete */}
+                    <button className="btn small" onClick={() => deleteFaq(f._id)}>Delete</button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
+  )}
+</div>
+
 
       {/* STUDENT SUBMISSIONS */}
       <div className="card">
