@@ -55,7 +55,7 @@ export default function AdminDashboard() {
   const [sName, setSName] = useState("");
   const [sTitle, setSTitle] = useState("");
   const [sContent, setSContent] = useState("");
-  const [sImage, setSImage] = useState("");
+  const [sImageFile, setSImageFile] = useState(null); // Changed to file
 
   const [fqQuestion, setFqQuestion] = useState("");
   const [fqAnswer, setFqAnswer] = useState("");
@@ -169,16 +169,43 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleStoryImageChange = (e) => {
+    const file = e.target.files[0];
+    setSImageFile(file);
+  };
+
   const addStory = async () => {
     try {
+      const formData = new FormData();
+      formData.append("studentName", sName);
+      formData.append("title", sTitle);
+      formData.append("content", sContent);
+      if (sImageFile) {
+        formData.append("image", sImageFile);
+      }
+
       const res = await API.post(
         "/admin/content/successStories",
-        { studentName: sName, title: sTitle, content: sContent, imageUrl: sImage },
-        authConfig()
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("brainoven_token")}`,
+            "Content-Type": "multipart/form-data",
+          },
+        }
       );
-      const created = normalize(res)[0];
+      const created = res.data;
       if (created) setStories((p) => [created, ...p]);
-      setSName(""); setSTitle(""); setSContent(""); setSImage("");
+      setSName(""); 
+      setSTitle(""); 
+      setSContent(""); 
+      setSImageFile(null);
+      
+      // Reset file input
+      const fileInput = document.getElementById("storyImageInput");
+      if (fileInput) fileInput.value = "";
+      
+      alert("Success story added!");
     } catch (err) {
       console.error("addStory error:", err);
       alert("Error adding story");
@@ -367,6 +394,10 @@ export default function AdminDashboard() {
         .image-card img{ width:100%; height:150px; object-fit:cover }
         .image-info{ padding:8px }
         .image-actions{ padding:8px; display:flex; justify-content:space-between }
+        .story-list{ margin-top:16px }
+        .story-item{ display:flex; gap:12px; padding:12px; border:1px solid #eee; border-radius:8px; margin-bottom:12px; align-items:center }
+        .story-thumb{ width:80px; height:80px; object-fit:cover; border-radius:8px; flex-shrink:0 }
+        .story-content{ flex:1 }
       `}</style>
 
       <div className="admin">
@@ -409,16 +440,44 @@ export default function AdminDashboard() {
           <h3>Success Stories</h3>
           <input placeholder="Student Name" value={sName} onChange={e => setSName(e.target.value)} />
           <input placeholder="Title" value={sTitle} onChange={e => setSTitle(e.target.value)} />
-          <input placeholder="Image URL" value={sImage} onChange={e => setSImage(e.target.value)} />
+          <input 
+            id="storyImageInput"
+            type="file" 
+            accept="image/*"
+            onChange={handleStoryImageChange}
+            style={{ marginBottom: '8px' }}
+          />
+          {sImageFile && (
+            <p style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '8px' }}>
+              Selected: {sImageFile.name}
+            </p>
+          )}
           <textarea placeholder="Content" value={sContent} onChange={e => setSContent(e.target.value)} />
           <button onClick={addStory}>Add Story</button>
 
-          {stories.map(s => (
-            <p key={getId(s)}>
-              <strong>{s.studentName}</strong> — {s.title}
-              <button onClick={() => deleteStory(getId(s))}>Delete</button>
-            </p>
-          ))}
+          <div className="story-list">
+            {stories.map(s => (
+              <div key={getId(s)} className="story-item">
+                {s.imageUrl && (
+                  <img 
+                    src={getImageUrl(s.imageUrl)} 
+                    alt={s.studentName}
+                    className="story-thumb"
+                    onError={(e) => {
+                      e.target.src = 'https://via.placeholder.com/80x80?text=No+Image';
+                    }}
+                  />
+                )}
+                <div className="story-content">
+                  <strong>{s.studentName}</strong> — {s.title}
+                  <p style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '4px' }}>
+                    {s.content?.slice(0, 80)}...
+                  </p>
+                </div>
+                <button className="danger" onClick={() => deleteStory(getId(s))}>Delete</button>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* GALLERY FOLDERS */}

@@ -4,6 +4,16 @@ import API from "../api";
 import { Link } from "react-router-dom";
 import FloatingButton from "../Components/FloatingButton";
 
+// Backend URL for image paths
+const BACKEND_URL = process.env.REACT_APP_API_URL?.replace('/api', '') || "https://deployment-backend-brainoven.onrender.com";
+
+// Helper function to get full image URL
+const getImageUrl = (url) => {
+  if (!url) return '';
+  if (url.startsWith('http')) return url;
+  return `${BACKEND_URL}${url}`;
+};
+
 // --- COMMON SCROLL STYLES (Moved outside component) ---
 const scrollContainerStyle = {
   display: "flex",
@@ -313,7 +323,7 @@ export default function Home() {
               <div className="card h-100 shadow-sm p-4 border-0">
                 <h3 className="card-title fs-5 fw-bold text-dark">Mission </h3>
                 <p className="card-text text-muted">
-                  “Transforming raw talent into skilled tech professionals” by
+                  "Transforming raw talent into skilled tech professionals" by
                   focusing on practical, industry-relevant skills.
                 </p>
               </div>
@@ -468,10 +478,13 @@ export default function Home() {
                 <div key={s._id} style={contentScrollItemStyle}>
                   <div className="card h-100 bg-white border-secondary shadow-sm">
                     <img
-                      src={s.imageUrl || "https://via.placeholder.com/320x180"}
+                      src={getImageUrl(s.imageUrl) || "https://via.placeholder.com/320x180"}
                       alt={s.title}
                       className="card-img-top"
                       style={{ height: "180px", objectFit: "cover" }}
+                      onError={(e) => {
+                        e.target.src = "https://via.placeholder.com/320x180?text=No+Image";
+                      }}
                     />
                     <div className="card-body">
                       <h4 className="card-title fs-5 fw-bold">
