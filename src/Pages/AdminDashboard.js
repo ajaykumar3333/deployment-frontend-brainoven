@@ -20,6 +20,16 @@ const normalize = (res) => {
 
 const getId = (x) => x?._id || x?.id;
 
+// Backend URL for image paths
+const BACKEND_URL = process.env.REACT_APP_API_URL?.replace('/api', '') || "https://deployment-backend-brainoven.onrender.com";
+
+// Helper function to get full image URL
+const getImageUrl = (url) => {
+  if (!url) return '';
+  if (url.startsWith('http')) return url;
+  return `${BACKEND_URL}${url}`;
+};
+
 /* ================= component ================= */
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -27,7 +37,7 @@ export default function AdminDashboard() {
   /* ---------- data ---------- */
   const [courses, setCourses] = useState([]);
   const [stories, setStories] = useState([]);
-  const [gallery, setGallery] = useState([]);
+  const [galleryFolders, setGalleryFolders] = useState([]);
   const [faqs, setFaqs] = useState([]);
   const [students, setStudents] = useState([]);
 
@@ -47,11 +57,14 @@ export default function AdminDashboard() {
   const [sContent, setSContent] = useState("");
   const [sImage, setSImage] = useState("");
 
-  const [gTitle, setGTitle] = useState("");
-  const [gImage, setGImage] = useState("");
-
   const [fqQuestion, setFqQuestion] = useState("");
   const [fqAnswer, setFqAnswer] = useState("");
+
+  // Gallery folder states
+  const [folderName, setFolderName] = useState("");
+  const [selectedFolder, setSelectedFolder] = useState(null);
+  const [imageFiles, setImageFiles] = useState([]);
+  const [imageCaption, setImageCaption] = useState("");
 
   /* ================= lifecycle ================= */
   useEffect(() => {
@@ -67,27 +80,57 @@ export default function AdminDashboard() {
   const fetchAll = async () => {
     setLoading(true);
     setError("");
+    
     try {
-      const [cRes, sRes, gRes, fRes, stRes] = await Promise.all([
-        API.get("/courses"),
-        API.get("/successStories"),
-        API.get("/gallery").catch(() => ({ data: [] })),
-        API.get("/faqs"),
-        API.get("/students/all", authConfig()),
-      ]);
-
-      setCourses(normalize(cRes));
-      setStories(normalize(sRes));
-      setGallery(normalize(gRes));
-      setFaqs(normalize(fRes));
-      setStudents(normalize(stRes));
-    } catch (e) {
-      console.error(e);
-      setError("Failed to load admin data");
-      if (e?.response?.status === 401) {
-        localStorage.removeItem("brainoven_token");
-        navigate("/admin");
+      // Fetch courses
+      try {
+        const cRes = await API.get("/courses");
+        setCourses(normalize(cRes));
+      } catch (err) {
+        console.warn("Could not fetch courses:", err.message);
       }
+
+      // Fetch stories
+      try {
+        const sRes = await API.get("/successStories");
+        setStories(normalize(sRes));
+      } catch (err) {
+        console.warn("Could not fetch stories:", err.message);
+      }
+
+      // Fetch gallery folders (may not exist yet)
+      try {
+        const gRes = await API.get("/gallery-folders");
+        setGalleryFolders(normalize(gRes));
+      } catch (err) {
+        console.warn("Could not fetch gallery folders:", err.message);
+        setGalleryFolders([]); // Set empty array if endpoint doesn't exist yet
+      }
+
+      // Fetch FAQs
+      try {
+        const fRes = await API.get("/faqs");
+        setFaqs(normalize(fRes));
+      } catch (err) {
+        console.warn("Could not fetch FAQs:", err.message);
+      }
+
+      // Fetch students
+      try {
+        const stRes = await API.get("/students/all", authConfig());
+        setStudents(normalize(stRes));
+      } catch (err) {
+        console.warn("Could not fetch students:", err.message);
+        // Check for auth error
+        if (err?.response?.status === 401) {
+          localStorage.removeItem("brainoven_token");
+          navigate("/admin");
+        }
+      }
+
+    } catch (e) {
+      console.error("Unexpected error in fetchAll:", e);
+      setError("Some data could not be loaded. Please refresh the page.");
     } finally {
       setLoading(false);
     }
@@ -109,15 +152,21 @@ export default function AdminDashboard() {
       const created = normalize(res)[0];
       if (created) setCourses((p) => [created, ...p]);
       setCTitle(""); setCSyllabus(""); setCDuration(""); setCObjectives(""); setCOutcome("");
-    } catch {
+    } catch (err) {
+      console.error("addCourse error:", err);
       alert("Error adding course");
     }
   };
 
   const deleteCourse = async (id) => {
     if (!window.confirm("Delete course?")) return;
-    await API.delete(`/admin/content/courses/${id}`, authConfig());
-    setCourses((p) => p.filter((x) => getId(x) !== id));
+    try {
+      await API.delete(`/admin/content/courses/${id}`, authConfig());
+      setCourses((p) => p.filter((x) => getId(x) !== id));
+    } catch (err) {
+      console.error("deleteCourse error:", err);
+      alert("Error deleting course");
+    }
   };
 
   const addStory = async () => {
@@ -130,36 +179,21 @@ export default function AdminDashboard() {
       const created = normalize(res)[0];
       if (created) setStories((p) => [created, ...p]);
       setSName(""); setSTitle(""); setSContent(""); setSImage("");
-    } catch {
+    } catch (err) {
+      console.error("addStory error:", err);
       alert("Error adding story");
     }
   };
 
   const deleteStory = async (id) => {
     if (!window.confirm("Delete story?")) return;
-    await API.delete(`/admin/content/successStories/${id}`, authConfig());
-    setStories((p) => p.filter((x) => getId(x) !== id));
-  };
-
-  const addGallery = async () => {
     try {
-      const res = await API.post(
-        "/admin/content/gallery",
-        { title: gTitle, imageUrl: gImage },
-        authConfig()
-      );
-      const created = normalize(res)[0];
-      if (created) setGallery((p) => [created, ...p]);
-      setGTitle(""); setGImage("");
-    } catch {
-      alert("Error adding gallery image");
+      await API.delete(`/admin/content/successStories/${id}`, authConfig());
+      setStories((p) => p.filter((x) => getId(x) !== id));
+    } catch (err) {
+      console.error("deleteStory error:", err);
+      alert("Error deleting story");
     }
-  };
-
-  const deleteGallery = async (id) => {
-    if (!window.confirm("Delete image?")) return;
-    await API.delete(`/admin/content/gallery/${id}`, authConfig());
-    setGallery((p) => p.filter((x) => getId(x) !== id));
   };
 
   const addFaq = async () => {
@@ -172,15 +206,132 @@ export default function AdminDashboard() {
       const created = normalize(res)[0];
       if (created) setFaqs((p) => [created, ...p]);
       setFqQuestion(""); setFqAnswer("");
-    } catch {
+    } catch (err) {
+      console.error("addFaq error:", err);
       alert("Error adding FAQ");
     }
   };
 
   const deleteFaq = async (id) => {
     if (!window.confirm("Delete FAQ?")) return;
-    await API.delete(`/admin/content/faqs/${id}`, authConfig());
-    setFaqs((p) => p.filter((x) => getId(x) !== id));
+    try {
+      await API.delete(`/admin/content/faqs/${id}`, authConfig());
+      setFaqs((p) => p.filter((x) => getId(x) !== id));
+    } catch (err) {
+      console.error("deleteFaq error:", err);
+      alert("Error deleting FAQ");
+    }
+  };
+
+  // ==================== GALLERY FOLDER HANDLERS ====================
+  
+  const createFolder = async () => {
+    if (!folderName.trim()) {
+      alert("Please enter a folder name");
+      return;
+    }
+    try {
+      const res = await API.post(
+        "/admin/content/gallery-folders",
+        { name: folderName },
+        authConfig()
+      );
+      const created = res.data;
+      setGalleryFolders((p) => [created, ...p]);
+      setFolderName("");
+      alert("Folder created successfully!");
+    } catch (err) {
+      console.error("createFolder error:", err);
+      alert("Error creating folder. Make sure the backend route is set up correctly.");
+    }
+  };
+
+  const deleteFolder = async (id) => {
+    if (!window.confirm("Delete this folder and all its images?")) return;
+    try {
+      await API.delete(`/admin/content/gallery-folders/${id}`, authConfig());
+      setGalleryFolders((p) => p.filter((x) => getId(x) !== id));
+      if (selectedFolder && getId(selectedFolder) === id) {
+        setSelectedFolder(null);
+      }
+    } catch (err) {
+      console.error("deleteFolder error:", err);
+      alert("Error deleting folder");
+    }
+  };
+
+  const handleImageFilesChange = (e) => {
+    setImageFiles(Array.from(e.target.files));
+  };
+
+  const uploadImages = async () => {
+    if (!selectedFolder) {
+      alert("Please select a folder first");
+      return;
+    }
+    if (imageFiles.length === 0) {
+      alert("Please select at least one image");
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      imageFiles.forEach(file => {
+        formData.append("images", file);
+      });
+      if (imageCaption) {
+        formData.append("caption", imageCaption);
+      }
+
+      const res = await API.post(
+        `/admin/content/gallery-folders/${getId(selectedFolder)}/images`,
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("brainoven_token")}`,
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+
+      // Update the folder in state
+      const updated = res.data;
+      setGalleryFolders((prev) =>
+        prev.map((f) => (getId(f) === getId(updated) ? updated : f))
+      );
+      setSelectedFolder(updated);
+      setImageFiles([]);
+      setImageCaption("");
+      
+      // Reset file input
+      const fileInput = document.getElementById("imageFilesInput");
+      if (fileInput) fileInput.value = "";
+
+      alert("Images uploaded successfully!");
+    } catch (err) {
+      console.error("uploadImages error:", err);
+      alert("Error uploading images. Check console for details.");
+    }
+  };
+
+  const deleteImage = async (folderId, imageId) => {
+    if (!window.confirm("Delete this image?")) return;
+    try {
+      const res = await API.delete(
+        `/admin/content/gallery-folders/${folderId}/images/${imageId}`,
+        authConfig()
+      );
+      const updated = res.data;
+      setGalleryFolders((prev) =>
+        prev.map((f) => (getId(f) === getId(updated) ? updated : f))
+      );
+      if (selectedFolder && getId(selectedFolder) === folderId) {
+        setSelectedFolder(updated);
+      }
+    } catch (err) {
+      console.error("deleteImage error:", err);
+      alert("Error deleting image");
+    }
   };
 
   /* ================= render ================= */
@@ -195,14 +346,27 @@ export default function AdminDashboard() {
         button{ background:var(--accent); color:#fff; border:none; padding:8px 12px; border-radius:8px; cursor:pointer }
         button.ghost{ background:transparent; color:var(--accent); border:1px solid #ddd }
         button.danger{ background:#dc3545; padding:4px 8px; font-size:12px }
-        input, textarea{ width:100%; margin-bottom:8px; padding:10px; border-radius:8px; border:1px solid #ddd }
+        button.primary{ background:#007bff }
+        button.success{ background:#28a745 }
+        input, textarea, select{ width:100%; margin-bottom:8px; padding:10px; border-radius:8px; border:1px solid #ddd }
         table{ width:100%; border-collapse:collapse }
         th{ text-align:left; padding:8px; border-bottom:2px solid #eee; color:var(--muted) }
         td{ padding:8px; border-bottom:1px solid #eee }
         .gallery{ display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:12px }
         .thumb img{ width:100%; height:120px; object-fit:cover; border-radius:8px }
-        .error{ color:#dc3545 }
+        .error{ color:#dc3545; padding:12px; background:#ffe6e6; border-radius:8px; margin-bottom:16px }
+        .warning{ color:#856404; padding:12px; background:#fff3cd; border-radius:8px; margin-bottom:16px }
         .faq-item{ display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f9f9f9 }
+        .folder-list{ display:flex; flex-wrap:wrap; gap:12px; margin:16px 0 }
+        .folder-card{ padding:12px 16px; border:2px solid #ddd; border-radius:8px; cursor:pointer; transition:all 0.2s }
+        .folder-card:hover{ border-color:#007bff; background:#f8f9fa }
+        .folder-card.selected{ border-color:#007bff; background:#e7f3ff }
+        .folder-header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px }
+        .image-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:16px; margin-top:16px }
+        .image-card{ border:1px solid #ddd; border-radius:8px; overflow:hidden }
+        .image-card img{ width:100%; height:150px; object-fit:cover }
+        .image-info{ padding:8px }
+        .image-actions{ padding:8px; display:flex; justify-content:space-between }
       `}</style>
 
       <div className="admin">
@@ -215,7 +379,7 @@ export default function AdminDashboard() {
         </div>
 
         {loading && <p>Loading…</p>}
-        {error && <p className="error">{error}</p>}
+        {error && <div className="error">{error}</div>}
 
         {/* COURSES */}
         <div className="card">
@@ -257,21 +421,126 @@ export default function AdminDashboard() {
           ))}
         </div>
 
-        {/* GALLERY */}
+        {/* GALLERY FOLDERS */}
         <div className="card">
-          <h3>Gallery</h3>
-          <input placeholder="Title" value={gTitle} onChange={e => setGTitle(e.target.value)} />
-          <input placeholder="Image URL" value={gImage} onChange={e => setGImage(e.target.value)} />
-          <button onClick={addGallery}>Add Image</button>
-
-          <div className="gallery">
-            {gallery.map(g => (
-              <div key={getId(g)} className="thumb">
-                <img src={g.imageUrl} alt="" />
-                <button onClick={() => deleteGallery(getId(g))}>Delete</button>
-              </div>
-            ))}
+          <h3>Gallery Management</h3>
+          
+          {galleryFolders.length === 0 && !loading && (
+            <div className="warning">
+              <strong>Note:</strong> If you just set up the gallery system, make sure you've:
+              <ul style={{ marginLeft: '20px', marginTop: '8px' }}>
+                <li>Added the GalleryFolder model to your backend</li>
+                <li>Updated your routes (adminRoutes.js and publicRoutes.js)</li>
+                <li>Updated your adminController.js</li>
+                <li>Restarted your backend server</li>
+              </ul>
+            </div>
+          )}
+          
+          {/* Create Folder */}
+          <div style={{ marginBottom: '24px' }}>
+            <h4>Create New Folder</h4>
+            <input 
+              placeholder="Folder Name (e.g., 'Campus Events', 'Student Activities')" 
+              value={folderName} 
+              onChange={e => setFolderName(e.target.value)} 
+            />
+            <button className="primary" onClick={createFolder}>Create Folder</button>
           </div>
+
+          {/* Folder List */}
+          <div>
+            <h4>Existing Folders</h4>
+            {galleryFolders.length === 0 && !loading && <p style={{ color: 'var(--muted)' }}>No folders yet. Create one above.</p>}
+            <div className="folder-list">
+              {galleryFolders.map(folder => (
+                <div 
+                  key={getId(folder)} 
+                  className={`folder-card ${selectedFolder && getId(selectedFolder) === getId(folder) ? 'selected' : ''}`}
+                  onClick={() => setSelectedFolder(folder)}
+                >
+                  <div className="folder-header">
+                    <strong>{folder.name}</strong>
+                    <button 
+                      className="danger" 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteFolder(getId(folder));
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
+                    {folder.images?.length || 0} image(s)
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Upload Images to Selected Folder */}
+          {selectedFolder && (
+            <div style={{ marginTop: '24px', padding: '16px', background: '#f8f9fa', borderRadius: '8px' }}>
+              <h4>Upload Images to: {selectedFolder.name}</h4>
+              <input 
+                id="imageFilesInput"
+                type="file" 
+                multiple 
+                accept="image/*"
+                onChange={handleImageFilesChange}
+                style={{ marginBottom: '8px' }}
+              />
+              <input 
+                placeholder="Optional caption for all images" 
+                value={imageCaption} 
+                onChange={e => setImageCaption(e.target.value)} 
+              />
+              <button className="success" onClick={uploadImages}>Upload Images</button>
+              {imageFiles.length > 0 && (
+                <p style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '8px' }}>
+                  {imageFiles.length} file(s) selected
+                </p>
+              )}
+
+              {/* Display Images in Selected Folder */}
+              {selectedFolder.images && selectedFolder.images.length > 0 && (
+                <div>
+                  <h4 style={{ marginTop: '24px' }}>Images in this folder:</h4>
+                  <div className="image-grid">
+                    {selectedFolder.images.map(img => (
+                      <div key={img._id} className="image-card">
+                        <img 
+                          src={getImageUrl(img.url)} 
+                          alt={img.caption || selectedFolder.name}
+                          onError={(e) => {
+                            console.error('Image failed to load:', img.url);
+                            e.target.src = 'https://via.placeholder.com/180x150?text=Error';
+                          }}
+                        />
+                        <div className="image-info">
+                          <div style={{ fontSize: '12px', fontWeight: '600' }}>
+                            {img.caption || 'No caption'}
+                          </div>
+                          <div style={{ fontSize: '11px', color: 'var(--muted)' }}>
+                            {new Date(img.createdAt).toLocaleDateString()}
+                          </div>
+                        </div>
+                        <div className="image-actions">
+                          <button 
+                            className="danger" 
+                            onClick={() => deleteImage(getId(selectedFolder), img._id)}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* FAQ */}
