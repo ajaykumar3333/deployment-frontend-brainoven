@@ -20,16 +20,6 @@ const normalize = (res) => {
 
 const getId = (x) => x?._id || x?.id;
 
-// Backend URL for image paths
-const BACKEND_URL = process.env.REACT_APP_API_URL?.replace('/api', '') || "https://deployment-backend-brainoven.onrender.com";
-
-// Helper function to get full image URL
-const getImageUrl = (url) => {
-  if (!url) return '';
-  if (url.startsWith('http')) return url;
-  return `${BACKEND_URL}${url}`;
-};
-
 /* ================= component ================= */
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -55,7 +45,7 @@ export default function AdminDashboard() {
   const [sName, setSName] = useState("");
   const [sTitle, setSTitle] = useState("");
   const [sContent, setSContent] = useState("");
-  const [sImageFile, setSImageFile] = useState(null); // Changed to file
+  const [sImageFile, setSImageFile] = useState(null);
 
   const [fqQuestion, setFqQuestion] = useState("");
   const [fqAnswer, setFqAnswer] = useState("");
@@ -98,13 +88,13 @@ export default function AdminDashboard() {
         console.warn("Could not fetch stories:", err.message);
       }
 
-      // Fetch gallery folders (may not exist yet)
+      // Fetch gallery folders
       try {
         const gRes = await API.get("/gallery-folders");
         setGalleryFolders(normalize(gRes));
       } catch (err) {
         console.warn("Could not fetch gallery folders:", err.message);
-        setGalleryFolders([]); // Set empty array if endpoint doesn't exist yet
+        setGalleryFolders([]);
       }
 
       // Fetch FAQs
@@ -121,7 +111,6 @@ export default function AdminDashboard() {
         setStudents(normalize(stRes));
       } catch (err) {
         console.warn("Could not fetch students:", err.message);
-        // Check for auth error
         if (err?.response?.status === 401) {
           localStorage.removeItem("brainoven_token");
           navigate("/admin");
@@ -460,7 +449,7 @@ export default function AdminDashboard() {
               <div key={getId(s)} className="story-item">
                 {s.imageUrl && (
                   <img 
-                    src={getImageUrl(s.imageUrl)} 
+                    src={s.imageUrl}
                     alt={s.studentName}
                     className="story-thumb"
                     onError={(e) => {
@@ -570,7 +559,7 @@ export default function AdminDashboard() {
                     {selectedFolder.images.map(img => (
                       <div key={img._id} className="image-card">
                         <img 
-                          src={getImageUrl(img.url)} 
+                          src={img.url}
                           alt={img.caption || selectedFolder.name}
                           onError={(e) => {
                             console.error('Image failed to load:', img.url);

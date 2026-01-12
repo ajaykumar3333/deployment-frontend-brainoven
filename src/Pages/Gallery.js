@@ -6,18 +6,6 @@ export default function Gallery() {
   const [folders, setFolders] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Backend URL for image paths
-  const BACKEND_URL = process.env.REACT_APP_API_URL?.replace('/api', '') || "https://deployment-backend-brainoven.onrender.com";
-
-  // Helper function to get full image URL
-  const getImageUrl = (url) => {
-    if (!url) return '';
-    // If URL already starts with http, return as is
-    if (url.startsWith('http')) return url;
-    // Otherwise, prepend backend URL
-    return `${BACKEND_URL}${url}`;
-  };
-
   useEffect(() => {
     setLoading(true);
     API.get("/gallery-folders")
@@ -163,7 +151,7 @@ export default function Gallery() {
                 {folder.images.map(img => (
                   <div key={img._id} className="image-card">
                     <img 
-                      src={getImageUrl(img.url)} 
+                      src={img.url}
                       alt={img.caption || folder.name}
                       loading="lazy"
                       onError={(e) => {
