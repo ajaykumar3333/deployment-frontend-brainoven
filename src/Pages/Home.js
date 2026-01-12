@@ -4,15 +4,9 @@ import API from "../api";
 import { Link } from "react-router-dom";
 import FloatingButton from "../Components/FloatingButton";
 
-// Backend URL for image paths
-const BACKEND_URL = process.env.REACT_APP_API_URL?.replace('/api', '') || "https://deployment-backend-brainoven.onrender.com";
-
-// Helper function to get full image URL
-const getImageUrl = (url) => {
-  if (!url) return '';
-  if (url.startsWith('http')) return url;
-  return `${BACKEND_URL}${url}`;
-};
+// Placeholder for default card images
+const imagePlaceholderUrl =
+  "https://www.collegevaluesonline.com/wp-content/uploads/2024/06/Innovative-Colleges-with-Low-Cost-Hybrid-Learning-Options-featured-image.jpg";
 
 // --- COMMON SCROLL STYLES (Moved outside component) ---
 const scrollContainerStyle = {
@@ -35,14 +29,11 @@ const contentScrollItemStyle = {
   marginRight: "1rem", // Gap between cards
 };
 
-// Placeholder for default card images
-const imagePlaceholderUrl =
-  "https://www.collegevaluesonline.com/wp-content/uploads/2024/06/Innovative-Colleges-with-Low-Cost-Hybrid-Learning-Options-featured-image.jpg";
-
 export default function Home() {
   const [courses, setCourses] = useState([]);
   const [stories, setStories] = useState([]);
   const [gallery, setGallery] = useState([]);
+  const [whyChooseItems, setWhyChooseItems] = useState([]);
 
   // Refs for scrollable sections
   const heroRef = useRef(null);
@@ -82,7 +73,7 @@ export default function Home() {
   // --- END HERO IMAGE DATA ---
 
   useEffect(() => {
-    // API calls remain the same
+    // Fetch all data from API
     API.get("/courses")
       .then((r) => setCourses(r.data))
       .catch(() => {});
@@ -92,46 +83,10 @@ export default function Home() {
     API.get("/gallery")
       .then((r) => setGallery(r.data))
       .catch(() => {});
+    API.get("/why-choose")
+      .then((r) => setWhyChooseItems(r.data || []))
+      .catch(() => {});
   }, []);
-
-  const whyPoints = [
-    {
-      id: "hybrid",
-      title: "Hybrid Learning Options",
-      text: "Flexible online + offline classes so you can learn at your pace.",
-      icon: "bi-tablet-landscape-fill",
-    },
-    {
-      id: "expert",
-      title: "Expert-Led Training",
-      text: "Learn directly from industry professionals with real experience.",
-      icon: "bi-person-badge-fill",
-    },
-    {
-      id: "projects",
-      title: "Project-Based Approach",
-      text: "Every course includes hands-on projects for your portfolio.",
-      icon: "bi-code-slash",
-    },
-    {
-      id: "internship",
-      title: "Internship Programs",
-      text: "Gain practical experience through guided internships.",
-      icon: "bi-briefcase-fill",
-    },
-    {
-      id: "kits",
-      title: "Startup Project Kits",
-      text: "Launch-ready project kits for startups and college students.",
-      icon: "bi-lightning-charge-fill",
-    },
-    {
-      id: "placement",
-      title: "Placement Assistance",
-      text: "Resume building, mock interviews, and job guidance.",
-      icon: "bi-flag-fill",
-    },
-  ];
 
   // Scroll helpers
   const scrollBy = (ref, amount) => {
@@ -347,7 +302,7 @@ export default function Home() {
 
         <hr className="my-5" />
 
-        {/* 3. WHY BRAINOVEN — Horizontal Scrollable Cards */}
+        {/* 3. WHY BRAINOVEN — Horizontal Scrollable Cards (Now from Admin Panel) */}
         <section className="mb-5">
           <h2 className="text-center mb-4 text-dark display-6 fw-bold">
             Why Choose BrainOven?
@@ -384,8 +339,13 @@ export default function Home() {
               className="d-flex hide-scrollbar"
               style={scrollContainerStyle}
             >
-              {whyPoints.map((point, index) => (
-                <div key={point.id} style={contentScrollItemStyle}>
+              {whyChooseItems.length === 0 && (
+                <div className="col">
+                  <p className="text-muted">Loading why choose items...</p>
+                </div>
+              )}
+              {whyChooseItems.map((item) => (
+                <div key={item._id} style={contentScrollItemStyle}>
                   <div
                     className="card text-white bg-dark border-secondary h-100 shadow-lg"
                     style={{
@@ -397,13 +357,16 @@ export default function Home() {
                   >
                     {/* Background Image */}
                     <img
-                      src={gallery[index]?.imageUrl || imagePlaceholderUrl}
-                      alt={point.title}
+                      src={item.imageUrl || imagePlaceholderUrl}
+                      alt={item.title}
                       className="card-img"
                       style={{
                         height: "100%",
                         objectFit: "cover",
                         filter: "brightness(0.55)", // Darken the image for text contrast
+                      }}
+                      onError={(e) => {
+                        e.target.src = imagePlaceholderUrl;
                       }}
                     />
 
@@ -415,17 +378,14 @@ export default function Home() {
                           "linear-gradient(180deg, transparent 20%, rgba(0,0,0,0.85))",
                       }}
                     >
-                      <i
-                        className={`bi ${point.icon || "bi-book-half"} fs-1 mb-2 text-warning`}
-                      ></i>
                       <h3 className="card-title fs-5 fw-bold mb-1">
-                        {point.title}
+                        {item.title}
                       </h3>
                       <p
                         className="card-text small mb-0"
                         style={{ color: "#dcdcdc" }}
                       >
-                        {point.text}
+                        {item.description}
                       </p>
                     </div>
                   </div>
@@ -478,7 +438,7 @@ export default function Home() {
                 <div key={s._id} style={contentScrollItemStyle}>
                   <div className="card h-100 bg-white border-secondary shadow-sm">
                     <img
-                      src={getImageUrl(s.imageUrl) || "https://via.placeholder.com/320x180"}
+                      src={s.imageUrl || "https://via.placeholder.com/320x180"}
                       alt={s.title}
                       className="card-img-top"
                       style={{ height: "180px", objectFit: "cover" }}

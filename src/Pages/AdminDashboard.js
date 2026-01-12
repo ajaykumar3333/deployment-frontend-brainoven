@@ -30,6 +30,7 @@ export default function AdminDashboard() {
   const [galleryFolders, setGalleryFolders] = useState([]);
   const [faqs, setFaqs] = useState([]);
   const [students, setStudents] = useState([]);
+  const [whyChooseItems, setWhyChooseItems] = useState([]);
 
   /* ---------- ui ---------- */
   const [loading, setLoading] = useState(false);
@@ -55,6 +56,12 @@ export default function AdminDashboard() {
   const [selectedFolder, setSelectedFolder] = useState(null);
   const [imageFiles, setImageFiles] = useState([]);
   const [imageCaption, setImageCaption] = useState("");
+
+  // Why Choose states
+  const [wcTitle, setWcTitle] = useState("");
+  const [wcDescription, setWcDescription] = useState("");
+  const [wcImageFile, setWcImageFile] = useState(null);
+  const [wcOrder, setWcOrder] = useState(0);
 
   /* ================= lifecycle ================= */
   useEffect(() => {
@@ -103,6 +110,14 @@ export default function AdminDashboard() {
         setFaqs(normalize(fRes));
       } catch (err) {
         console.warn("Could not fetch FAQs:", err.message);
+      }
+
+      // Fetch Why Choose items
+      try {
+        const wcRes = await API.get("/why-choose");
+        setWhyChooseItems(normalize(wcRes));
+      } catch (err) {
+        console.warn("Could not fetch Why Choose items:", err.message);
       }
 
       // Fetch students
@@ -190,7 +205,6 @@ export default function AdminDashboard() {
       setSContent(""); 
       setSImageFile(null);
       
-      // Reset file input
       const fileInput = document.getElementById("storyImageInput");
       if (fileInput) fileInput.value = "";
       
@@ -310,7 +324,6 @@ export default function AdminDashboard() {
         }
       );
 
-      // Update the folder in state
       const updated = res.data;
       setGalleryFolders((prev) =>
         prev.map((f) => (getId(f) === getId(updated) ? updated : f))
@@ -319,7 +332,6 @@ export default function AdminDashboard() {
       setImageFiles([]);
       setImageCaption("");
       
-      // Reset file input
       const fileInput = document.getElementById("imageFilesInput");
       if (fileInput) fileInput.value = "";
 
@@ -347,6 +359,66 @@ export default function AdminDashboard() {
     } catch (err) {
       console.error("deleteImage error:", err);
       alert("Error deleting image");
+    }
+  };
+
+  // ==================== WHY CHOOSE HANDLERS ====================
+
+  const handleWcImageChange = (e) => {
+    const file = e.target.files[0];
+    setWcImageFile(file);
+  };
+
+  const addWhyChoose = async () => {
+    if (!wcTitle.trim() || !wcDescription.trim()) {
+      alert("Please fill in title and description");
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append("title", wcTitle);
+      formData.append("description", wcDescription);
+      formData.append("order", wcOrder);
+      if (wcImageFile) {
+        formData.append("image", wcImageFile);
+      }
+
+      const res = await API.post(
+        "/admin/content/why-choose",
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("brainoven_token")}`,
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+      const created = res.data;
+      if (created) setWhyChooseItems((p) => [created, ...p]);
+      setWcTitle("");
+      setWcDescription("");
+      setWcImageFile(null);
+      setWcOrder(0);
+      
+      const fileInput = document.getElementById("wcImageInput");
+      if (fileInput) fileInput.value = "";
+      
+      alert("Why Choose item added!");
+    } catch (err) {
+      console.error("addWhyChoose error:", err);
+      alert("Error adding Why Choose item");
+    }
+  };
+
+  const deleteWhyChoose = async (id) => {
+    if (!window.confirm("Delete this item?")) return;
+    try {
+      await API.delete(`/admin/content/why-choose/${id}`, authConfig());
+      setWhyChooseItems((p) => p.filter((x) => getId(x) !== id));
+    } catch (err) {
+      console.error("deleteWhyChoose error:", err);
+      alert("Error deleting Why Choose item");
     }
   };
 
@@ -387,6 +459,10 @@ export default function AdminDashboard() {
         .story-item{ display:flex; gap:12px; padding:12px; border:1px solid #eee; border-radius:8px; margin-bottom:12px; align-items:center }
         .story-thumb{ width:80px; height:80px; object-fit:cover; border-radius:8px; flex-shrink:0 }
         .story-content{ flex:1 }
+        .wc-list{ margin-top:16px }
+        .wc-item{ display:flex; gap:12px; padding:12px; border:1px solid #eee; border-radius:8px; margin-bottom:12px; align-items:center }
+        .wc-thumb{ width:100px; height:100px; object-fit:cover; border-radius:8px; flex-shrink:0 }
+        .wc-content{ flex:1 }
       `}</style>
 
       <div className="admin">
@@ -400,6 +476,66 @@ export default function AdminDashboard() {
 
         {loading && <p>Loading…</p>}
         {error && <div className="error">{error}</div>}
+
+        {/* WHY CHOOSE BRAINOVEN */}
+        <div className="card">
+          <h3>Why Choose BrainOven</h3>
+          <input placeholder="Title (e.g., 'Expert Instructors')" value={wcTitle} onChange={e => setWcTitle(e.target.value)} />
+          <textarea 
+            placeholder="Description (explain this feature)" 
+            value={wcDescription} 
+            onChange={e => setWcDescription(e.target.value)}
+            rows={3}
+          />
+          <input 
+            id="wcImageInput"
+            type="file" 
+            accept="image/*"
+            onChange={handleWcImageChange}
+            style={{ marginBottom: '8px' }}
+          />
+          {wcImageFile && (
+            <p style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '8px' }}>
+              Selected: {wcImageFile.name}
+            </p>
+          )}
+          <input 
+            type="number" 
+            placeholder="Order (0 = first, 1 = second, etc.)" 
+            value={wcOrder} 
+            onChange={e => setWcOrder(parseInt(e.target.value) || 0)}
+          />
+          <button onClick={addWhyChoose}>Add Why Choose Item</button>
+
+          <div className="wc-list">
+            <h4>Existing Items</h4>
+            {whyChooseItems.length === 0 && <p style={{ color: 'var(--muted)', fontStyle: 'italic' }}>No items yet.</p>}
+            {whyChooseItems.map(item => (
+              <div key={getId(item)} className="wc-item">
+                {item.imageUrl && (
+                  <img 
+                    src={item.imageUrl}
+                    alt={item.title}
+                    className="wc-thumb"
+                    onError={(e) => {
+                      e.target.src = 'https://via.placeholder.com/100x100?text=No+Image';
+                    }}
+                  />
+                )}
+                <div className="wc-content">
+                  <strong>{item.title}</strong>
+                  <p style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '4px' }}>
+                    {item.description?.slice(0, 100)}...
+                  </p>
+                  <span style={{ fontSize: '11px', color: 'var(--muted)' }}>
+                    Order: {item.order}
+                  </span>
+                </div>
+                <button className="danger" onClick={() => deleteWhyChoose(getId(item))}>Delete</button>
+              </div>
+            ))}
+          </div>
+        </div>
 
         {/* COURSES */}
         <div className="card">
@@ -473,19 +609,6 @@ export default function AdminDashboard() {
         <div className="card">
           <h3>Gallery Management</h3>
           
-          {galleryFolders.length === 0 && !loading && (
-            <div className="warning">
-              <strong>Note:</strong> If you just set up the gallery system, make sure you've:
-              <ul style={{ marginLeft: '20px', marginTop: '8px' }}>
-                <li>Added the GalleryFolder model to your backend</li>
-                <li>Updated your routes (adminRoutes.js and publicRoutes.js)</li>
-                <li>Updated your adminController.js</li>
-                <li>Restarted your backend server</li>
-              </ul>
-            </div>
-          )}
-          
-          {/* Create Folder */}
           <div style={{ marginBottom: '24px' }}>
             <h4>Create New Folder</h4>
             <input 
@@ -496,7 +619,6 @@ export default function AdminDashboard() {
             <button className="primary" onClick={createFolder}>Create Folder</button>
           </div>
 
-          {/* Folder List */}
           <div>
             <h4>Existing Folders</h4>
             {galleryFolders.length === 0 && !loading && <p style={{ color: 'var(--muted)' }}>No folders yet. Create one above.</p>}
@@ -527,7 +649,6 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* Upload Images to Selected Folder */}
           {selectedFolder && (
             <div style={{ marginTop: '24px', padding: '16px', background: '#f8f9fa', borderRadius: '8px' }}>
               <h4>Upload Images to: {selectedFolder.name}</h4>
@@ -551,7 +672,6 @@ export default function AdminDashboard() {
                 </p>
               )}
 
-              {/* Display Images in Selected Folder */}
               {selectedFolder.images && selectedFolder.images.length > 0 && (
                 <div>
                   <h4 style={{ marginTop: '24px' }}>Images in this folder:</h4>
