@@ -72,8 +72,9 @@ export default function Gallery() {
         }
         .image-card img {
           width: 100%;
-          height: 220px;
+          height: 350px;
           object-fit: cover;
+          overflow: hidden;
           display: block;
         }
         .image-info {

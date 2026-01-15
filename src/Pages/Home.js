@@ -441,7 +441,7 @@ export default function Home() {
                       src={s.imageUrl || "https://via.placeholder.com/320x180"}
                       alt={s.title}
                       className="card-img-top"
-                      style={{ height: "180px", objectFit: "cover" }}
+                      style={{ height: "350px", objectFit: "cover", overflow:"hidden" }}
                       onError={(e) => {
                         e.target.src = "https://via.placeholder.com/320x180?text=No+Image";
                       }}
